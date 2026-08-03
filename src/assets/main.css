@@ -1,35 +1,103 @@
-@import './base.css';
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
+/* ==========================================================================
+   디자인 토큰
+   색·간격·둥글기를 여기 한 곳에서만 정의하고, 아래/컴포넌트에서는 var()만 참조한다.
+   --hot / --cool 두 값만 바꿔도 화면 전체 온도 표현이 같이 바뀐다.
+   ========================================================================== */
+:root {
+  /* 표면 */
+  --paper: #eef1f5;
+  --surface: #ffffff;
+  --surface-sunken: #f6f8fa;
+  --line: #dfe4ea;
+  --line-strong: #c3ccd6;
+
+  /* 글자 */
+  --text: #14171c;
+  --text-dim: #5b6673;
+  --text-faint: #8b95a3;
+
+  /* 온도 스펙트럼 (이 프로젝트의 주인공 색) */
+  --hot: #e0512b;
+  --hot-soft: #fdeee9;
+  --cool: #2c6fd1;
+  --cool-soft: #e9f0fc;
+
+  /* 상태 */
+  --ok: #1f7a4d;
+  --ok-soft: #e8f5ee;
+  --warn: #a8630b;
+  --warn-soft: #fdf3e2;
+
+  /* 리듬 */
+  --gap-1: 6px;
+  --gap-2: 10px;
+  --gap-3: 16px;
+  --gap-4: 24px;
+  --gap-5: 36px;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+
+  --shadow-1: 0 1px 2px rgba(20, 23, 28, 0.06);
+  --shadow-2: 0 6px 20px rgba(20, 23, 28, 0.09);
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  font-family:
+    'Pretendard Variable',
+    Pretendard,
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
+    'Apple SD Gothic Neo',
+    'Malgun Gothic',
+    sans-serif;
+  color: var(--text);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+* {
+  box-sizing: border-box;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+body {
+  margin: 0;
+  min-height: 100vh;
+  line-height: 1.55;
 }
 
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
+button {
+  font: inherit;
+  cursor: pointer;
+}
 
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
+input {
+  font: inherit;
+}
+
+/* 숫자가 흔들리지 않도록 고정폭 숫자 사용 */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* 키보드 사용자를 위한 포커스 링 */
+:focus-visible {
+  outline: 2px solid var(--cool);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
