@@ -1,19 +1,14 @@
 /**
- * temperature.js — 온도 표시 공통 로직
+ * temperature.js — 단위와 무관한 순수 계산 함수
  *
- * 화면이 여러 개로 늘어나면 "홈은 화씨인데 상세는 섭씨" 같은 불일치가 생기기 쉽다.
- * 변환 코드를 이 파일에만 두고 모든 화면이 여기서 가져다 쓰게 한다.
- *
- * 원본 데이터는 항상 섭씨로 보관하고, 화씨는 그릴 때만 변환한다.
- * 데이터 자체를 바꾸지 않으므로 단위를 여러 번 토글해도 오차가 쌓이지 않는다.
+ * 스토어나 컴포넌트를 전혀 참조하지 않는다. 입력이 같으면 항상 같은 값을 돌려주므로
+ * 테스트하기 쉽고, 어디서 호출하든 결과가 달라지지 않는다.
+ * 스토어의 현재 단위와 연결하는 일은 composables/useTemperature.js 가 맡는다.
  */
 
-export function toDisplayTemp(celsius, unit) {
-  return unit === 'F' ? Math.round((celsius * 9) / 5 + 32) : celsius
-}
-
-export function formatTemp(celsius, unit) {
-  return `${toDisplayTemp(celsius, unit)}°${unit}`
+/** 섭씨를 화씨로 변환 */
+export function celsiusToFahrenheit(celsius) {
+  return Math.round((celsius * 9) / 5 + 32)
 }
 
 /**

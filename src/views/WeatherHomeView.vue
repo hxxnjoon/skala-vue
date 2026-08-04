@@ -1,30 +1,37 @@
 <!--
-  WeatherHomeView.vue — 메인 대시보드 (기존 WeatherParent 를 페이지로 승격)
+  WeatherHomeView.vue — 메인 대시보드
 
-  과제 3의 WeatherParent 와 하는 일은 같다. 달라진 점은 두 가지다.
-    1. views/ 로 옮겨 "페이지 단위 컴포넌트"가 되었다
-    2. 상세보기가 window.alert 가 아니라 라우터 이동으로 바뀌었다
-       → router.push() 로 /weather/:cityId 페이지를 연다 (Programmatic Navigation)
+  이전 버전에서 달라진 점
+    · unit ref 제거          → configStore 로 이동, 단위 토글 버튼도 내비게이션 바로 이동
+    · favoriteIds ref 제거   → favoritesStore 로 이동
+    · 즐겨찾기 저장 watch 제거 → 저장 시점이 스토어 action 안으로 들어감
+    · 상세 페이지 이동 시 ?unit= 쿼리 전달 제거 → 스토어가 전역이라 넘길 필요가 없음
+
+  화면 고유의 상태(검색어·필터·정렬·선택)는 그대로 이 컴포넌트에 남겼다.
+  다른 화면이 공유하지 않는 값까지 스토어로 옮기면 전역 상태가 불필요하게 커진다.
 -->
 
 <script setup>
 import { ref, computed, watch, watchEffect, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { useTemperature } from '../composables/useTemperature.js'
+import { useFavoritesStore } from '../stores/favoritesStore.js'
 import { withJosa, matchesChoseong } from '../utils/korean.js'
-import { formatTemp } from '../utils/temperature.js'
 import { fetchWeatherList } from '../data/weather.js'
 
 import BaseDashboardCard from '../components/exercise/BaseDashboardCard.vue'
 import SearchBar from '../components/exercise/SearchBar.vue'
 import WeatherCard from '../components/exercise/WeatherCard.vue'
 
-/**
- * useRouter() 는 이동시키는 도구를 준다 (push, replace, back).
- */
 const router = useRouter()
 
-/* ── 반응형 상태 ───────────────────────────── */
+// 단위 변환은 Composable 을 통해서만 접근한다
+const { format: showTemp } = useTemperature()
+
+const favoritesStore = useFavoritesStore()
+
+/* ── 이 화면에서만 쓰는 상태 ───────────────── */
 const weatherList = ref([])
 const searchQuery = ref('')
 const selectedCityInfo = ref('')
@@ -33,16 +40,9 @@ const selectedCityId = ref(null)
 const isLoading = ref(false)
 const errorMessage = ref('')
 
-const unit = ref('C')
 const tempFilter = ref('all')
 const sortKey = ref('temp-desc')
-
-// 즐겨찾기는 도시 객체가 아니라 id 만 저장한다.
-// 원본 데이터가 갱신돼도 깨지지 않고 저장 용량도 작다.
-const favoriteIds = ref([])
 const favoritesOnly = ref(false)
-
-const FAVORITES_KEY = 'weather-dashboard:favorites'
 
 /* ── 데이터 불러오기 ──────────────────────── */
 const loadWeather = async ({ shouldFail = false } = {}) => {
@@ -62,22 +62,7 @@ const loadWeather = async ({ shouldFail = false } = {}) => {
 const loadNormal = () => loadWeather()
 const loadWithError = () => loadWeather({ shouldFail: true })
 
-/** 저장해 둔 즐겨찾기 읽기. 값이 손상됐을 수 있으므로 try/catch 로 감싼다. */
-const loadFavorites = () => {
-  try {
-    const saved = localStorage.getItem(FAVORITES_KEY)
-    if (!saved) return
-    const parsed = JSON.parse(saved)
-    if (Array.isArray(parsed)) favoriteIds.value = parsed
-  } catch {
-    favoriteIds.value = []
-  }
-}
-
-onMounted(() => {
-  loadFavorites()
-  loadNormal()
-})
+onMounted(loadNormal)
 
 /* ── computed ─────────────────────────────── */
 const filteredWeatherList = computed(() => {
@@ -92,7 +77,7 @@ const filteredWeatherList = computed(() => {
   }
 
   if (favoritesOnly.value) {
-    result = result.filter((city) => favoriteIds.value.includes(city.id))
+    result = result.filter((city) => favoritesStore.has(city.id))
   }
 
   if (tempFilter.value === 'hot') {
@@ -101,7 +86,7 @@ const filteredWeatherList = computed(() => {
     result = result.filter((city) => city.temp < 25)
   }
 
-  // sort 는 원본을 뒤섞으므로 복사한 뒤 정렬한다
+  // sort 는 원본 배열을 뒤섞으므로 복사한 뒤 정렬한다
   return [...result].sort((a, b) => {
     if (sortKey.value === 'temp-asc') return a.temp - b.temp
     if (sortKey.value === 'name') return a.name.localeCompare(b.name, 'ko')
@@ -109,11 +94,9 @@ const filteredWeatherList = computed(() => {
   })
 })
 
-const favoriteCount = computed(() => favoriteIds.value.length)
-
 const summary = computed(() => {
   const list = filteredWeatherList.value
-  if (list.length === 0) return null
+  if (list.length === 0) return null // 빈 배열에 Math.max 를 쓰면 -Infinity 가 된다
 
   const temps = list.map((city) => city.temp)
   const avg = temps.reduce((sum, t) => sum + t, 0) / temps.length
@@ -135,30 +118,20 @@ const selectedCity = computed(
   () => weatherList.value.find((city) => city.id === selectedCityId.value) ?? null,
 )
 
-const showTemp = (celsius) => formatTemp(celsius, unit.value)
-const isFavorite = (id) => favoriteIds.value.includes(id)
-
 /* ── watch / watchEffect ──────────────────── */
 watch(selectedCityInfo, (newValue) => {
   console.log(`👀 [watch] 상태 바 문구 변경 → "${newValue}"`)
 })
 
-watch(unit, (newUnit) => {
-  console.log(`🌡️ [watch] 표시 단위 → ${newUnit === 'C' ? '섭씨' : '화씨'}`)
-})
-
 /**
- * 즐겨찾기가 바뀌면 localStorage 에 저장한다.
- * 저장은 새 값을 만드는 일이 아니라 부수 효과라서 computed 가 아니라 watch 를 썼다.
- * deep: true 는 나중에 push() 로 배열 내부를 바꾸더라도 감지되게 하기 위한 것.
+ * 스토어의 값도 일반 반응형 값처럼 감시할 수 있다.
+ * getter 를 함수로 감싸 넘기는 형태에 주의한다.
  */
 watch(
-  favoriteIds,
-  (newList) => {
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify(newList))
-    console.log(`⭐ [watch] 즐겨찾기 ${newList.length}곳 저장됨`)
+  () => favoritesStore.count,
+  (count) => {
+    console.log(`⭐ [watch] 즐겨찾기 ${count}곳`)
   },
-  { deep: true },
 )
 
 watchEffect(() => {
@@ -169,8 +142,9 @@ watchEffect(() => {
 
 /**
  * 탭 제목 갱신.
- * isLoading, selectedCity, unit, 목록 개수 등 여러 값에 동시에 의존하므로
- * 감시 대상을 자동 추적해 주는 watchEffect 가 알맞다.
+ * 로딩 여부·선택 도시·단위·목록 개수 등 여러 값에 동시에 의존하므로,
+ * 감시 대상을 자동으로 추적하는 watchEffect 가 알맞다.
+ * 단위를 바꾸면 showTemp 가 참조하는 스토어 값이 바뀌어 제목도 함께 갱신된다.
  */
 watchEffect(() => {
   const base = '날씨 대시보드'
@@ -200,36 +174,27 @@ const handleSelectCard = (city) => {
 }
 
 /**
- * [상세보기] — 과제 요구사항 3
- *
- * 이전에는 window.alert 로 정보를 띄웠지만, 이제 상세 페이지로 이동한다.
- *
- * 경로를 '/weather/' + id 처럼 문자열로 이어 붙일 수도 있지만,
- * name + params 형태를 쓰면 나중에 경로 규칙이 바뀌어도 이 코드는 그대로 둘 수 있다.
+ * 상세 페이지로 이동한다.
+ * 이전에는 단위를 query 로 함께 넘겼으나, 스토어가 전역이므로 더 이상 필요 없다.
  */
 const handleClickDetail = (city) => {
-  router.push({
-    name: 'weather-detail',
-    params: { cityId: city.id },
-    query: { unit: unit.value },
-  })
+  router.push({ name: 'weather-detail', params: { cityId: city.id } })
 }
 
-/** 즐겨찾기 토글 — 배열을 직접 수정하지 않고 새 배열로 갈아 끼운다 */
+/**
+ * 즐겨찾기 토글.
+ * 목록 관리는 스토어 action 이 담당하고, 이 화면은 안내 문구만 만든다.
+ * toggle() 이 담긴 상태인지를 돌려주므로 조사 처리와 함께 문구를 구성할 수 있다.
+ */
 const handleToggleFavorite = (city) => {
-  if (favoriteIds.value.includes(city.id)) {
-    favoriteIds.value = favoriteIds.value.filter((id) => id !== city.id)
-    selectedCityInfo.value = `${withJosa(city.name, '을/를')} 즐겨찾기에서 뺐습니다.`
-  } else {
-    favoriteIds.value = [...favoriteIds.value, city.id]
-    selectedCityInfo.value = `${withJosa(city.name, '을/를')} 즐겨찾기에 담았습니다.`
-  }
+  const added = favoritesStore.toggle(city.id)
+  const josaAttached = withJosa(city.name, '을/를')
+  selectedCityInfo.value = added
+    ? `${josaAttached} 즐겨찾기에 담았습니다.`
+    : `${josaAttached} 즐겨찾기에서 뺐습니다.`
 }
 
 /* ── 그 밖의 조작 ─────────────────────────── */
-const setUnitC = () => (unit.value = 'C')
-const setUnitF = () => (unit.value = 'F')
-
 const setFilterAll = () => (tempFilter.value = 'all')
 const setFilterHot = () => (tempFilter.value = 'hot')
 const setFilterCool = () => (tempFilter.value = 'cool')
@@ -251,32 +216,11 @@ const resetFilters = () => {
 <template>
   <div class="page">
     <header class="head">
-      <div class="head-text">
-        <p class="eyebrow">Vue Router</p>
-        <h1>과제 4 · 날씨 대시보드</h1>
-      </div>
-
-      <div class="unit" role="group" aria-label="온도 단위 전환">
-        <button
-          type="button"
-          :class="{ on: unit === 'C' }"
-          :aria-pressed="unit === 'C'"
-          @click="setUnitC"
-        >
-          °C
-        </button>
-        <button
-          type="button"
-          :class="{ on: unit === 'F' }"
-          :aria-pressed="unit === 'F'"
-          @click="setUnitF"
-        >
-          °F
-        </button>
-      </div>
+      <p class="eyebrow">Pinia Store</p>
+      <h1>과제 5 · 날씨 대시보드</h1>
     </header>
 
-    <BaseDashboardCard title="도시 검색 (한글·초성 지원)" icon="search">
+    <BaseDashboardCard title="도시 검색 (한글 즉시 동기화)" icon="search">
       <SearchBar :query="searchQuery" @update-query="handleUpdateQuery" />
 
       <p class="hint">
@@ -298,10 +242,10 @@ const resetFilters = () => {
             type="button"
             class="star-chip"
             :class="{ on: favoritesOnly }"
-            :disabled="favoriteCount === 0"
+            :disabled="favoritesStore.count === 0"
             @click="toggleFavoritesOnly"
           >
-            ★ 즐겨찾기 {{ favoriteCount }}
+            ★ 즐겨찾기 {{ favoritesStore.count }}
           </button>
         </div>
 
@@ -321,6 +265,7 @@ const resetFilters = () => {
         <span v-if="summary" class="count tnum">{{ summary.count }}곳</span>
       </template>
 
+      <!-- 요약 통계도 카드와 같은 Composable 을 쓰므로 단위가 어긋날 수 없다 -->
       <div v-if="summary && !isLoading" class="summary">
         <div class="stat">
           <span class="stat-label">평균</span>
@@ -366,14 +311,13 @@ const resetFilters = () => {
 
       <!-- 목록 -->
       <div v-else class="grid">
+        <!-- unit 과 is-favorite 을 넘기지 않는다. 자식이 스토어에서 직접 읽는다. -->
         <WeatherCard
           v-for="city in filteredWeatherList"
           :key="city.id"
           :city="city"
-          :unit="unit"
           :keyword="searchQuery"
           :selected="selectedCityId === city.id"
-          :is-favorite="isFavorite(city.id)"
           @select-card="handleSelectCard"
           @click-detail="handleClickDetail"
           @toggle-favorite="handleToggleFavorite"
@@ -407,10 +351,6 @@ const resetFilters = () => {
 }
 
 .head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--gap-3);
   margin-bottom: var(--gap-1);
 }
 
@@ -428,31 +368,6 @@ h1 {
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-
-.unit {
-  display: flex;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 3px;
-  box-shadow: var(--shadow-1);
-}
-
-.unit button {
-  border: 0;
-  background: transparent;
-  color: var(--text-dim);
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  transition: all 0.18s var(--ease);
-}
-
-.unit button.on {
-  background: var(--text);
-  color: #fff;
 }
 
 .hint {
@@ -533,6 +448,7 @@ h1 {
   color: var(--text-faint);
 }
 
+/* gap 1px + 배경색으로 구분선을 대신한다 */
 .summary {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

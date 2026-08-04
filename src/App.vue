@@ -27,12 +27,18 @@ import { RouterLink, RouterView } from 'vue-router'
         날씨 대시보드
       </RouterLink>
 
-      <div class="links">
-        <!--
-          RouterLink 는 현재 주소와 맞으면 자동으로 클래스를 붙여 준다.
-        -->
-        <RouterLink :to="{ name: 'home' }">대시보드</RouterLink>
-        <RouterLink :to="{ name: 'about' }">서비스 소개</RouterLink>
+      <div class="right">
+        <div class="links">
+          <!--
+            RouterLink 는 현재 주소와 맞으면 클래스를 자동으로 붙인다.
+          -->
+          <RouterLink :to="{ name: 'home' }">대시보드</RouterLink>
+          <RouterLink :to="{ name: 'about' }">서비스 소개</RouterLink>
+        </div>
+
+        <span class="divider" aria-hidden="true"></span>
+
+        <UnitToggler />
       </div>
     </nav>
 
@@ -86,6 +92,12 @@ import { RouterLink, RouterView } from 'vue-router'
   color: var(--cool);
 }
 
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+}
+
 .links {
   display: flex;
   gap: 4px;
@@ -98,6 +110,7 @@ import { RouterLink, RouterView } from 'vue-router'
   font-weight: 600;
   color: var(--text-dim);
   text-decoration: none;
+  white-space: nowrap;
   transition: all 0.18s var(--ease);
 }
 
@@ -110,6 +123,12 @@ import { RouterLink, RouterView } from 'vue-router'
 .links a.router-link-exact-active {
   background: var(--text);
   color: #fff;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
 }
 
 .main {
@@ -132,5 +151,16 @@ import { RouterLink, RouterView } from 'vue-router'
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-4px);
+}
+
+@media (max-width: 560px) {
+  .nav {
+    padding: 0 var(--gap-2);
+    gap: var(--gap-2);
+  }
+
+  .links a {
+    padding: 6px 9px;
+  }
 }
 </style>

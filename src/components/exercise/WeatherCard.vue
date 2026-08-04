@@ -11,20 +11,27 @@
 
 <script setup>
 import { computed } from 'vue'
-import { formatTemp, isHot, gaugePercent } from '../../utils/temperature.js'
+
+import { useTemperature } from '../../composables/useTemperature.js'
+import { useFavoritesStore } from '../../stores/favoritesStore.js'
+import { isHot, gaugePercent } from '../../utils/temperature.js'
 
 const props = defineProps({
   city: { type: Object, required: true },
-  unit: { type: String, default: 'C' },
   selected: { type: Boolean, default: false },
   keyword: { type: String, default: '' },
-  isFavorite: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['select-card', 'click-detail', 'toggle-favorite'])
 
+// 단위 변환은 Composable 한 곳에만 존재한다. 카드마다 같은 computed 를 작성하지 않는다.
+const { format } = useTemperature()
+
+const favoritesStore = useFavoritesStore()
+const isFavorite = computed(() => favoritesStore.has(props.city.id))
+
 const hot = computed(() => isHot(props.city.temp))
-const tempLabel = computed(() => formatTemp(props.city.temp, props.unit))
+const tempLabel = computed(() => format(props.city.temp))
 const barWidth = computed(() => gaugePercent(props.city.temp) + '%')
 
 // 검색어와 일치하는 구간을 조각내어 형광펜 표시
@@ -79,7 +86,7 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
 <template>
   <article
     class="card"
-    :class="{ selected: props.selected, fav: props.isFavorite }"
+    :class="{ selected: props.selected, fav: isFavorite }"
     tabindex="0"
     role="button"
     :aria-pressed="props.selected"
@@ -127,14 +134,14 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
         <button
           type="button"
           class="fav-btn"
-          :class="{ on: props.isFavorite }"
-          :aria-pressed="props.isFavorite"
-          :title="props.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'"
+          :class="{ on: isFavorite }"
+          :aria-pressed="isFavorite"
+          :title="isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'"
           @click.stop="onToggleFavorite"
         >
           <svg
             viewBox="0 0 24 24"
-            :fill="props.isFavorite ? 'currentColor' : 'none'"
+            :fill="isFavorite ? 'currentColor' : 'none'"
             stroke="currentColor"
             stroke-width="1.6"
             stroke-linejoin="round"
@@ -175,7 +182,7 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
   box-shadow: 0 0 0 1px var(--text);
 }
 
-/* 즐겨찾기 카드는 왼쪽 띠로 표시 */
+/* 즐겨찾기 카드는 왼쪽 띠로 구분한다 */
 .card.fav::before {
   content: '';
   position: absolute;
