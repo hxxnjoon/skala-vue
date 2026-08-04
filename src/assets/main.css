@@ -1,36 +1,32 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css');
 
 /* ==========================================================================
-   디자인 토큰
-   색·간격·둥글기를 여기 한 곳에서만 정의하고, 아래/컴포넌트에서는 var()만 참조한다.
-   --hot / --cool 두 값만 바꿔도 화면 전체 온도 표현이 같이 바뀐다.
+   디자인 토큰 — 색·간격·둥글기를 여기서만 정의하고 나머지는 var() 로 참조
    ========================================================================== */
 :root {
-  /* 표면 */
   --paper: #eef1f5;
   --surface: #ffffff;
   --surface-sunken: #f6f8fa;
   --line: #dfe4ea;
   --line-strong: #c3ccd6;
 
-  /* 글자 */
   --text: #14171c;
   --text-dim: #5b6673;
   --text-faint: #8b95a3;
 
-  /* 온도 스펙트럼 (이 프로젝트의 주인공 색) */
+  /* 온도 스펙트럼 */
   --hot: #e0512b;
   --hot-soft: #fdeee9;
   --cool: #2c6fd1;
   --cool-soft: #e9f0fc;
 
+  /* 즐겨찾기 */
+  --star: #d9a017;
+
   /* 상태 */
   --ok: #1f7a4d;
   --ok-soft: #e8f5ee;
-  --warn: #a8630b;
-  --warn-soft: #fdf3e2;
 
-  /* 리듬 */
   --gap-1: 6px;
   --gap-2: 10px;
   --gap-3: 16px;
@@ -80,13 +76,12 @@ input {
   font: inherit;
 }
 
-/* 숫자가 흔들리지 않도록 고정폭 숫자 사용 */
+/* 숫자 폭 고정 — 단위를 바꿔도 글자가 덜컹거리지 않게 */
 .tnum {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
 }
 
-/* 키보드 사용자를 위한 포커스 링 */
 :focus-visible {
   outline: 2px solid var(--cool);
   outline-offset: 2px;

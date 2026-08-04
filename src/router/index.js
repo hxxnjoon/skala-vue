@@ -1,23 +1,56 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+/**
+ * router/index.js — 라우트 규칙 정의
+ *
+ * 라우터는 "주소(URL) ↔ 화면(컴포넌트)" 대응표다.
+ * /weather/city_01 로 들어오면 WeatherDetailView 를 그려 주는 식.
+ */
+import { createRouter, createWebHashHistory } from 'vue-router'
+
+// 홈은 접속하자마자 무조건 필요하므로 미리 불러온다.
+// 지연 로딩을 걸면 첫 화면에서 오히려 한 번 더 기다리게 된다.
+import WeatherHomeView from '../views/WeatherHomeView.vue'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  /**
+   * 히스토리 모드 선택
+   */
+  history: createWebHashHistory(import.meta.env.BASE_URL),
+
   routes: [
     {
       path: '/',
       name: 'home',
-      component: HomeView,
+      component: WeatherHomeView,
+    },
+    {
+      /**
+       * 동적 세그먼트(:cityId)
+       */
+      path: '/weather/:cityId',
+      name: 'weather-detail',
+      // 지연 로딩: 이 화면에 처음 들어갈 때 코드를 내려받는다.
+      // 초기 번들이 작아져 첫 로딩이 빨라진다.
+      component: () => import('../views/WeatherDetailView.vue'),
     },
     {
       path: '/about',
       name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue'),
+      component: () => import('../views/WeatherAboutView.vue'),
+    },
+    {
+      /**
+       * Catch-all Route — 위 어느 규칙에도 걸리지 않은 주소를 전부 받는다.
+       */
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('../views/NotFoundView.vue'),
     },
   ],
+
+  // 페이지를 옮길 때 스크롤을 맨 위로. 뒤로 가기는 원래 위치를 복원한다.
+  scrollBehavior(to, from, savedPosition) {
+    return savedPosition ?? { top: 0 }
+  },
 })
 
 export default router
