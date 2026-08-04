@@ -18,7 +18,7 @@ import { useRouter } from 'vue-router'
 import { useTemperature } from '../composables/useTemperature.js'
 import { useFavoritesStore } from '../stores/favoritesStore.js'
 import { withJosa, matchesChoseong } from '../utils/korean.js'
-import { fetchWeatherList } from '../data/weather.js'
+import { fetchWeatherList } from '../api/weatherApi.js'
 
 import BaseDashboardCard from '../components/exercise/BaseDashboardCard.vue'
 import SearchBar from '../components/exercise/SearchBar.vue'
@@ -44,23 +44,33 @@ const tempFilter = ref('all')
 const sortKey = ref('temp-desc')
 const favoritesOnly = ref(false)
 
-/* ── 데이터 불러오기 ──────────────────────── */
-const loadWeather = async ({ shouldFail = false } = {}) => {
+const canRetry = ref(true)
+const lastUpdated = ref(null) // 마지막으로 성공한 시각
+
+/**
+ * 날씨 목록을 불러온다.
+ *
+ * Mock 을 쓰던 때와 달리 실패 사유가 여러 가지다(키 오류·네트워크·요청 한도).
+ * 사유별 문구는 API 계층의 ApiError 가 이미 만들어 두었으므로 그대로 사용하고,
+ * 재시도 버튼 표시 여부만 retryable 로 판단한다.
+ */
+const loadWeather = async () => {
   isLoading.value = true
   errorMessage.value = ''
 
   try {
-    weatherList.value = await fetchWeatherList({ shouldFail })
-  } catch {
+    weatherList.value = await fetchWeatherList()
+    lastUpdated.value = new Date()
+  } catch (error) {
     weatherList.value = []
-    errorMessage.value = '날씨 정보를 불러오지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.'
+    errorMessage.value = error.message
+    canRetry.value = error.retryable ?? true
   } finally {
     isLoading.value = false
   }
 }
 
 const loadNormal = () => loadWeather()
-const loadWithError = () => loadWeather({ shouldFail: true })
 
 onMounted(loadNormal)
 
@@ -107,6 +117,13 @@ const summary = computed(() => {
     max: Math.max(...temps),
     min: Math.min(...temps),
   }
+})
+
+const updatedLabel = computed(() => {
+  if (!lastUpdated.value) return ''
+  const hh = String(lastUpdated.value.getHours()).padStart(2, '0')
+  const mm = String(lastUpdated.value.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm} 기준`
 })
 
 const hasKeyword = computed(() => searchQuery.value.trim() !== '')
@@ -262,6 +279,7 @@ const resetFilters = () => {
 
     <BaseDashboardCard title="지역별 날씨 현황" icon="chart">
       <template #actions>
+        <span v-if="lastUpdated" class="updated">{{ updatedLabel }}</span>
         <span v-if="summary" class="count tnum">{{ summary.count }}곳</span>
       </template>
 
@@ -295,7 +313,8 @@ const resetFilters = () => {
       <div v-else-if="errorMessage" class="notice error">
         <p class="notice-title">불러오기 실패</p>
         <p class="notice-body">{{ errorMessage }}</p>
-        <button type="button" class="retry" @click="loadNormal">다시 시도</button>
+        <!-- 키 오류처럼 다시 눌러도 소용없는 경우에는 버튼을 감춘다 -->
+        <button v-if="canRetry" type="button" class="retry" @click="loadNormal">다시 시도</button>
       </div>
 
       <!-- 빈 결과 -->
@@ -334,8 +353,7 @@ const resetFilters = () => {
     </footer>
 
     <p class="devnote">
-      <button type="button" @click="loadWithError">에러 상태 보기</button>
-      <button type="button" @click="loadNormal">정상 다시 불러오기</button>
+      <button type="button" @click="loadNormal">새로고침</button>
     </p>
   </div>
 </template>
@@ -445,6 +463,11 @@ h1 {
 .count {
   font-size: 12px;
   font-weight: 700;
+  color: var(--text-faint);
+}
+
+.updated {
+  font-size: 11px;
   color: var(--text-faint);
 }
 

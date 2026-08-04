@@ -18,8 +18,7 @@ import { useTemperature } from '../composables/useTemperature.js'
 import { useFavoritesStore } from '../stores/favoritesStore.js'
 import { isHot } from '../utils/temperature.js'
 import { withJosa } from '../utils/korean.js'
-import { fetchCityById } from '../data/weather.js'
-
+import { fetchCityById } from '../api/weatherApi.js'
 /**
  * useRoute()  → 현재 주소를 읽는다 (params, query)
  * useRouter() → 주소를 바꾼다 (push, replace, back)
@@ -41,9 +40,9 @@ const loadCity = async () => {
 
   try {
     city.value = await fetchCityById(route.params.cityId)
-  } catch {
+  } catch (error) {
     city.value = null
-    errorMessage.value = `'${route.params.cityId}' 에 해당하는 도시를 찾을 수 없습니다.`
+    errorMessage.value = error.message
   } finally {
     isLoading.value = false
   }
@@ -67,15 +66,15 @@ const isFavorite = computed(() => (city.value ? favoritesStore.has(city.value.id
 const hourlyBars = computed(() => {
   if (!city.value) return []
 
-  const temps = city.value.hourly
+  const temps = city.value.hourly.map((item) => item.temp)
   const min = Math.min(...temps)
   const max = Math.max(...temps)
   const span = max - min || 1 // 값이 모두 같으면 0으로 나누게 되므로 방어
 
-  return temps.map((temp, index) => ({
-    label: `${(index + 1) * 3}시`,
-    temp,
-    height: 20 + Math.round(((temp - min) / span) * 80),
+  return city.value.hourly.map((item) => ({
+    label: item.label,
+    temp: item.temp,
+    height: 20 + Math.round(((item.temp - min) / span) * 80),
   }))
 })
 
@@ -135,7 +134,7 @@ const onToggleFavorite = () => {
           <button type="button" class="back" @click="goHome">← 대시보드</button>
           <h1>{{ city.name }}</h1>
           <p class="sub">
-            {{ city.status }} · 체감 {{ showTemp(city.feelsLike) }}
+            {{ city.description || city.status }} · 체감 {{ showTemp(city.feelsLike) }}
             <span class="tag" :class="hot ? 'hot' : 'cool'">
               {{ city.temp >= 25 ? '더움 (25도 이상)' : '선선함 (25도 미만)' }}
             </span>

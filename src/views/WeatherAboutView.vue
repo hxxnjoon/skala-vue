@@ -29,8 +29,7 @@ const STACK = ['Vue 3', 'Composition API', 'Vue Router', 'Vite']
       <p class="eyebrow">About</p>
       <h1>서비스 소개</h1>
       <p class="lead">
-        Vue 3 학습용으로 만든 날씨 대시보드입니다. 실제 기상 API 대신 Mock 데이터를 사용하며,
-        컴포넌트 분리와 라우팅 구조를 연습하기 위해 작성했습니다.
+        Vue 3 학습용으로 만든 날씨 대시보드입니다. OpenWeatherMap API 를 사용했습니다.
       </p>
     </header>
 
@@ -49,9 +48,6 @@ const STACK = ['Vue 3', 'Composition API', 'Vue Router', 'Vite']
       <div class="stack">
         <span v-for="tech in STACK" :key="tech" class="chip">{{ tech }}</span>
       </div>
-      <p class="note">
-        데이터는 <code>src/data/weather.js</code> 의 Mock 배열이며, 실제 관측값이 아닙니다.
-      </p>
     </section>
 
     <!--
