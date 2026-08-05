@@ -13,6 +13,7 @@
 
 <script setup>
 import { ref, computed, watch, watchEffect, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 
 import { useTemperature } from '../composables/useTemperature.js'
@@ -25,6 +26,9 @@ import BaseDashboardCard from '../components/exercise/BaseDashboardCard.vue'
 import SearchBar from '../components/exercise/SearchBar.vue'
 import WeatherCard from '../components/exercise/WeatherCard.vue'
 import CityDetailDialog from '../components/exercise/CityDetailDialog.vue'
+
+const route = useRoute()
+const router = useRouter()
 
 // 단위 변환은 Composable 을 통해서만 접근한다
 const { format: showTemp } = useTemperature()
@@ -47,11 +51,21 @@ const favoritesOnly = ref(false)
 const canRetry = ref(true)
 const lastUpdated = ref(null) // 마지막으로 성공한 시각
 
-/* ── 상세보기 모달 ──────────────────────────
-   페이지 이동 대신 모달로 띄운다. 카드를 클릭하면 selectedCityId(선택 표시)와
-   함께 이 두 값도 같이 설정된다 — handleSelectCard 참고. */
-const detailCityId = ref(null)
-const detailDialogVisible = ref(false)
+/**
+ * ── 상세보기 모달 ──────────────────────────
+ * 페이지 전체를 옮기지 않고 모달로 띄우되, 주소는 /weather/:cityId 로 바뀐다.
+ * route.params.cityId 를 그대로 모달의 열림 여부·대상 도시로 쓰므로
+ * 이 컴포넌트가 따로 상태를 들고 있지 않는다 — 주소가 유일한 출처(source of truth)다.
+ * 덕분에 새로고침·직접 주소 입력·뒤로 가기 모두 자연스럽게 동작한다.
+ */
+const detailCityId = computed(() => route.params.cityId ?? null)
+const detailDialogVisible = computed({
+  get: () => !!route.params.cityId,
+  set: (value) => {
+    // el-dialog 가 닫힐 때 update:modelValue(false) 를 emit 하면 여기로 들어온다.
+    if (!value) router.push({ name: 'home' })
+  },
+})
 
 /**
  * 날씨 목록을 불러온다.
@@ -192,13 +206,14 @@ const handleUpdateQuery = (value) => {
 /**
  * 카드를 클릭하면 선택 표시(상태바 문구)와 함께 상세보기 모달을 바로 연다.
  * 별도의 "상세보기" 버튼 없이 카드 자체가 그 역할을 한다.
- * 페이지 이동은 하지 않는다 — CityDetailDialog 가 필요한 데이터를 직접 불러온다.
+ *
+ * router.push 로 주소를 /weather/:cityId 로 바꾸면 detailCityId/detailDialogVisible
+ * computed 가 그 값을 그대로 읽어 모달을 연다 — 실제 데이터 조회는 CityDetailDialog 가 맡는다.
  */
 const handleSelectCard = (city) => {
   selectedCityId.value = city.id
   selectedCityInfo.value = `${withJosa(city.name, '이/가')} 선택되었습니다.`
-  detailCityId.value = city.id
-  detailDialogVisible.value = true
+  router.push({ name: 'weather-detail', params: { cityId: city.id } })
 }
 
 /**

@@ -2,7 +2,11 @@
  * router/index.js — 라우트 규칙 정의
  *
  * 라우터는 "주소(URL) ↔ 화면(컴포넌트)" 대응표다.
- * 도시 상세보기는 더 이상 별도 주소를 쓰지 않는다 — CityDetailDialog 모달로 뜬다.
+ *
+ * 도시 상세보기는 페이지가 아니라 모달(CityDetailDialog)로 뜨지만, 화면은 여전히
+ * WeatherHomeView 하나를 공유하면서 주소만 /weather/:cityId 로 바뀐다.
+ * 덕분에 주소창에 도시 상세 링크를 직접 입력하거나 새로고침해도 그 도시의
+ * 모달이 열린 채로 복원되고, 뒤로 가기를 누르면 모달만 닫힌다.
  */
 import { createRouter, createWebHashHistory } from 'vue-router'
 
@@ -20,6 +24,15 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
+      component: WeatherHomeView,
+    },
+    {
+      /**
+       * 동적 세그먼트(:cityId). 같은 WeatherHomeView 를 그대로 재사용하고,
+       * 컴포넌트 안에서 route.params.cityId 유무로 상세보기 모달을 연다.
+       */
+      path: '/weather/:cityId',
+      name: 'weather-detail',
       component: WeatherHomeView,
     },
     {

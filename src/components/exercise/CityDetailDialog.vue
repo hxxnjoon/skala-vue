@@ -1,7 +1,9 @@
 <!--
   CityDetailDialog.vue — 도시 상세 정보 + 주변 카페 추천 모달
 
-  이전에는 페이지 이동(/weather/:cityId)이었지만, 페이지를 옮기지 않고 모달로 뜨도록 바꿨다.
+  화면 전체를 옮기는 페이지 대신 모달로 뜨지만, 주소는 여전히 /weather/:cityId 로 바뀐다
+  (WeatherHomeView 가 라우터 파라미터를 modelValue/cityId 로 그대로 넘겨준다). 덕분에
+  주소를 직접 입력하거나 새로고침해도 그 도시의 모달이 열린 채로 복원되고, 뒤로 가기로 닫힌다.
   "주변 추천" 도 예전에는 별도 페이지(/places)였는데, 이제 이 모달 안으로 들어와서
   모달을 열 때마다 그 도시의 카페 중 무작위 2곳만 보여준다(음식점은 추천하지 않는다).
 
@@ -15,7 +17,7 @@
 -->
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useTemperature } from '../../composables/useTemperature.js'
 import { useFavoritesStore } from '../../stores/favoritesStore.js'
@@ -133,21 +135,35 @@ const loadCafes = async () => {
 }
 
 /**
- * 모달이 닫힘→열림으로 바뀔 때마다(=창에 들어갈 때마다) 실행된다.
- * 카테고리가 항상 카페로 고정이라 예전처럼 날씨를 먼저 기다릴 필요가 없어 동시에 부른다.
+ * modelValue/cityId 를 함께 지켜본다 (el-dialog 의 @open/@closed 대신).
+ *
+ * 부모(WeatherHomeView)가 이제 라우터 주소를 그대로 modelValue/cityId 로 흘려보내기 때문에,
+ * "닫힘 → 열림" 전환뿐 아니라 "주소창에 /weather/seoul 을 직접 입력해 처음부터 열려 있는 채로
+ * 마운트되는 경우"까지 감당해야 한다 — el-dialog 의 @open 은 후자에서 발생하지 않는다.
+ * immediate:true 라 첫 실행엔 이전 값이 없으므로 [false, null] 을 기본값으로 둔다.
+ *
+ * 카테고리가 항상 카페로 고정이라 예전처럼 날씨를 먼저 기다릴 필요 없이 두 조회를 동시에 부른다.
  */
-const onOpen = () => {
-  loadDetail()
-  loadCafes()
-}
+watch(
+  () => [props.modelValue, props.cityId],
+  ([visible, cityId], previous) => {
+    const [prevVisible, prevCityId] = previous ?? [false, null]
 
-/** 다음에 열 때 잠깐이라도 이전 도시 내용이 비치지 않도록 닫힌 뒤 상태를 비운다. */
-const onClosed = () => {
-  city.value = null
-  detailError.value = ''
-  cafes.value = []
-  cafesError.value = ''
-}
+    if (visible && (cityId !== prevCityId || !prevVisible)) {
+      loadDetail()
+      loadCafes()
+    }
+
+    // 다음에 열 때 잠깐이라도 이전 도시 내용이 비치지 않도록 닫히면 상태를 비운다.
+    if (!visible && prevVisible) {
+      city.value = null
+      detailError.value = ''
+      cafes.value = []
+      cafesError.value = ''
+    }
+  },
+  { immediate: true },
+)
 
 const onToggleFavorite = () => {
   if (!city.value) return
@@ -162,8 +178,6 @@ const onToggleFavorite = () => {
     align-center
     class="detail-dialog"
     :title="city ? city.name : detailError ? '오류' : '불러오는 중…'"
-    @open="onOpen"
-    @closed="onClosed"
   >
     <!-- 로딩 -->
     <el-skeleton v-if="isDetailLoading" animated :rows="4" />
