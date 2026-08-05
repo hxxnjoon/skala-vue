@@ -18,6 +18,10 @@ coverage
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# Claude Code local tool config (dev-server launch settings, local permissions) —
+# not part of the project itself, shouldn't ship in the submission repo.
+.claude/
 *.suo
 *.ntvs*
 *.njsproj
