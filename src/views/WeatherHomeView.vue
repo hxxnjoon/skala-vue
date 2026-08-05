@@ -13,19 +13,18 @@
 
 <script setup>
 import { ref, computed, watch, watchEffect, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { Refresh } from '@element-plus/icons-vue'
 
 import { useTemperature } from '../composables/useTemperature.js'
 import { useFavoritesStore } from '../stores/favoritesStore.js'
+import { getTempTier, TEMP_TIERS } from '../utils/temperature.js'
 import { withJosa, matchesChoseong } from '../utils/korean.js'
 import { fetchWeatherList } from '../api/weatherApi.js'
 
 import BaseDashboardCard from '../components/exercise/BaseDashboardCard.vue'
 import SearchBar from '../components/exercise/SearchBar.vue'
 import WeatherCard from '../components/exercise/WeatherCard.vue'
-
-const router = useRouter()
+import CityDetailDialog from '../components/exercise/CityDetailDialog.vue'
 
 // 단위 변환은 Composable 을 통해서만 접근한다
 const { format: showTemp } = useTemperature()
@@ -47,6 +46,12 @@ const favoritesOnly = ref(false)
 
 const canRetry = ref(true)
 const lastUpdated = ref(null) // 마지막으로 성공한 시각
+
+/* ── 상세보기 모달 ──────────────────────────
+   페이지 이동 대신 모달로 띄운다. 카드를 클릭하면 selectedCityId(선택 표시)와
+   함께 이 두 값도 같이 설정된다 — handleSelectCard 참고. */
+const detailCityId = ref(null)
+const detailDialogVisible = ref(false)
 
 /**
  * 날씨 목록을 불러온다.
@@ -91,10 +96,8 @@ const filteredWeatherList = computed(() => {
     result = result.filter((city) => favoritesStore.has(city.id))
   }
 
-  if (tempFilter.value === 'hot') {
-    result = result.filter((city) => city.temp >= 25)
-  } else if (tempFilter.value === 'cool') {
-    result = result.filter((city) => city.temp < 25)
+  if (tempFilter.value !== 'all') {
+    result = result.filter((city) => getTempTier(city.temp).key === tempFilter.value)
   }
 
   // sort 는 원본 배열을 뒤섞으므로 복사한 뒤 정렬한다
@@ -186,17 +189,16 @@ const handleUpdateQuery = (value) => {
   searchQuery.value = value
 }
 
+/**
+ * 카드를 클릭하면 선택 표시(상태바 문구)와 함께 상세보기 모달을 바로 연다.
+ * 별도의 "상세보기" 버튼 없이 카드 자체가 그 역할을 한다.
+ * 페이지 이동은 하지 않는다 — CityDetailDialog 가 필요한 데이터를 직접 불러온다.
+ */
 const handleSelectCard = (city) => {
   selectedCityId.value = city.id
   selectedCityInfo.value = `${withJosa(city.name, '이/가')} 선택되었습니다.`
-}
-
-/**
- * 상세 페이지로 이동한다.
- * 이전에는 단위를 query 로 함께 넘겼으나, 스토어가 전역이므로 더 이상 필요 없다.
- */
-const handleClickDetail = (city) => {
-  router.push({ name: 'weather-detail', params: { cityId: city.id } })
+  detailCityId.value = city.id
+  detailDialogVisible.value = true
 }
 
 /**
@@ -245,8 +247,9 @@ const resetFilters = () => {
         <div class="chips" role="group" aria-label="목록 필터">
           <el-radio-group v-model="tempFilter" size="small">
             <el-radio-button value="all">전체</el-radio-button>
-            <el-radio-button value="hot">더움 25↑</el-radio-button>
-            <el-radio-button value="cool">선선함 25↓</el-radio-button>
+            <el-radio-button v-for="tempTier in TEMP_TIERS" :key="tempTier.key" :value="tempTier.key">
+              {{ tempTier.label }}
+            </el-radio-button>
           </el-radio-group>
 
           <el-check-tag
@@ -281,11 +284,11 @@ const resetFilters = () => {
         </div>
         <div class="stat">
           <span class="stat-label">최고</span>
-          <span class="stat-value tnum hot">{{ showTemp(summary.max) }}</span>
+          <span class="stat-value tnum" :style="{ color: getTempTier(summary.max).color }">{{ showTemp(summary.max) }}</span>
         </div>
         <div class="stat">
           <span class="stat-label">최저</span>
-          <span class="stat-value tnum cool">{{ showTemp(summary.min) }}</span>
+          <span class="stat-value tnum" :style="{ color: getTempTier(summary.min).color }">{{ showTemp(summary.min) }}</span>
         </div>
       </div>
 
@@ -333,7 +336,6 @@ const resetFilters = () => {
           :keyword="searchQuery"
           :selected="selectedCityId === city.id"
           @select-card="handleSelectCard"
-          @click-detail="handleClickDetail"
           @toggle-favorite="handleToggleFavorite"
         />
       </div>
@@ -350,6 +352,8 @@ const resetFilters = () => {
     <p class="devnote">
       <el-button type="primary" link :icon="Refresh" @click="loadNormal">새로고침</el-button>
     </p>
+
+    <CityDetailDialog v-model="detailDialogVisible" :city-id="detailCityId" />
   </div>
 </template>
 
@@ -448,14 +452,6 @@ h1 {
 .stat-value {
   font-size: 17px;
   font-weight: 700;
-}
-
-.stat-value.hot {
-  color: var(--hot);
-}
-
-.stat-value.cool {
-  color: var(--cool);
 }
 
 /* auto-fill + minmax: 화면 폭에 맞춰 열 개수가 자동 조정된다 */

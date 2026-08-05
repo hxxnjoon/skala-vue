@@ -2,11 +2,13 @@
   WeatherCard.vue — 도시 한 곳의 날씨 카드
 
   props : city, unit, selected, keyword, isFavorite
-  emits : select-card, click-detail, toggle-favorite
+  emits : select-card, toggle-favorite
 
   자기 상태를 갖지 않는다. 무슨 일이 있었는지만 알리고,
-  무엇을 할지(페이지 이동·즐겨찾기 저장)는 부모가 정한다.
-  덕분에 이번 과제에서 alert 를 라우터 이동으로 바꿔도 이 파일은 손댈 필요가 없었다.
+  무엇을 할지(상세보기 모달 열기·즐겨찾기 저장)는 부모가 정한다.
+
+  카드 전체가 곧 "상세보기" 버튼이다 — 별도 버튼 없이 카드를 클릭하면
+  select-card 가 올라가고, 부모가 그 이벤트를 받아 선택 표시와 상세보기 모달을 함께 처리한다.
 -->
 
 <script setup>
@@ -14,7 +16,7 @@ import { computed } from 'vue'
 
 import { useTemperature } from '../../composables/useTemperature.js'
 import { useFavoritesStore } from '../../stores/favoritesStore.js'
-import { isHot, gaugePercent } from '../../utils/temperature.js'
+import { getTempTier, gaugePercent } from '../../utils/temperature.js'
 
 const props = defineProps({
   city: { type: Object, required: true },
@@ -22,7 +24,7 @@ const props = defineProps({
   keyword: { type: String, default: '' },
 })
 
-const emit = defineEmits(['select-card', 'click-detail', 'toggle-favorite'])
+const emit = defineEmits(['select-card', 'toggle-favorite'])
 
 // 단위 변환은 Composable 한 곳에만 존재한다. 카드마다 같은 computed 를 작성하지 않는다.
 const { format } = useTemperature()
@@ -30,7 +32,7 @@ const { format } = useTemperature()
 const favoritesStore = useFavoritesStore()
 const isFavorite = computed(() => favoritesStore.has(props.city.id))
 
-const hot = computed(() => isHot(props.city.temp))
+const tier = computed(() => getTempTier(props.city.temp))
 const tempLabel = computed(() => format(props.city.temp))
 const barWidth = computed(() => gaugePercent(props.city.temp) + '%')
 
@@ -79,7 +81,6 @@ const iconPaths = computed(() => ICON_PATHS[props.city.status] ?? ICON_PATHS['�
 const STAR_PATH = 'M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8L3.5 9.7l5.9-.9z'
 
 const onSelect = () => emit('select-card', props.city)
-const onDetail = () => emit('click-detail', props.city)
 const onToggleFavorite = () => emit('toggle-favorite', props.city)
 </script>
 
@@ -89,6 +90,7 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
     :class="{ selected: props.selected, fav: isFavorite }"
     tabindex="0"
     role="button"
+    :aria-label="`${props.city.name} 상세보기`"
     :aria-pressed="props.selected"
     @click="onSelect"
     @keydown.enter="onSelect"
@@ -101,7 +103,7 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
         }}</span>
       </h3>
 
-      <span class="status" :class="hot ? 'hot' : 'cool'">
+      <span class="status">
         <svg
           class="wx"
           viewBox="0 0 24 24"
@@ -110,6 +112,7 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
           stroke-width="1.6"
           stroke-linecap="round"
           aria-hidden="true"
+          :style="{ color: tier.color }"
         >
           <path v-for="(d, i) in iconPaths" :key="i" :d="d" />
         </svg>
@@ -120,40 +123,35 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
     <p class="temp tnum">{{ tempLabel }}</p>
 
     <div class="gauge" role="presentation">
-      <div class="gauge-fill" :class="hot ? 'hot' : 'cool'" :style="{ width: barWidth }"></div>
+      <div class="gauge-fill" :style="{ width: barWidth, background: tier.color }"></div>
     </div>
 
     <div class="card-bottom">
-      <el-tag :type="hot ? 'danger' : 'primary'" effect="light" size="small" round>
-        <template v-if="props.city.temp >= 25">더움 (25도 이상)</template>
-        <template v-else>선선함 (25도 미만)</template>
+      <el-tag effect="light" size="small" round :class="'tier-' + tier.key">
+        {{ tier.label }} ({{ tier.range }})
       </el-tag>
 
-      <div class="btns">
-        <!-- 카드 안의 버튼이므로 .stop 으로 카드 클릭까지 번지는 것을 막는다 -->
-        <el-tooltip :content="isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'" placement="top">
-          <button
-            type="button"
-            class="fav-btn"
-            :class="{ on: isFavorite }"
-            :aria-pressed="isFavorite"
-            @click.stop="onToggleFavorite"
+      <!-- 카드 안의 버튼이므로 .stop 으로 카드 클릭(상세보기 열림)까지 번지는 것을 막는다 -->
+      <el-tooltip :content="isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'" placement="top">
+        <button
+          type="button"
+          class="fav-btn"
+          :class="{ on: isFavorite }"
+          :aria-pressed="isFavorite"
+          @click.stop="onToggleFavorite"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            :fill="isFavorite ? 'currentColor' : 'none'"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"
+            aria-hidden="true"
           >
-            <svg
-              viewBox="0 0 24 24"
-              :fill="isFavorite ? 'currentColor' : 'none'"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path :d="STAR_PATH" />
-            </svg>
-          </button>
-        </el-tooltip>
-
-        <el-button size="small" round @click.stop="onDetail">상세보기</el-button>
-      </div>
+            <path :d="STAR_PATH" />
+          </svg>
+        </button>
+      </el-tooltip>
     </div>
   </article>
 </template>
@@ -229,14 +227,6 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
   height: 16px;
 }
 
-.status.hot .wx {
-  color: var(--hot);
-}
-
-.status.cool .wx {
-  color: var(--cool);
-}
-
 .temp {
   margin: var(--gap-2) 0 var(--gap-1);
   font-size: 30px;
@@ -254,15 +244,9 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
 .gauge-fill {
   height: 100%;
   border-radius: 999px;
-  transition: width 0.4s var(--ease);
-}
-
-.gauge-fill.hot {
-  background: var(--hot);
-}
-
-.gauge-fill.cool {
-  background: var(--cool);
+  transition:
+    width 0.4s var(--ease),
+    background 0.3s var(--ease);
 }
 
 .card-bottom {
@@ -271,12 +255,6 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
   justify-content: space-between;
   gap: var(--gap-1);
   margin-top: var(--gap-3);
-}
-
-.btns {
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .fav-btn {

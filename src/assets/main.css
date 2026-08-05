@@ -14,11 +14,25 @@
   --text-dim: #5b6673;
   --text-faint: #8b95a3;
 
-  /* 온도 스펙트럼 */
-  --hot: #e0512b;
-  --hot-soft: #fdeee9;
+  /*
+   * 온도 스펙트럼 — 5단계(매우더움/더움/선선함/쌀쌀함/추움)
+   *
+   * 색상환에서 고르게 떨어뜨려(빨강→주황→초록→파랑→보라) 인접 등급끼리도
+   * 색상(hue) 자체가 달라 항상 뚜렷이 구분되게 했다. 밝기·채도 차이만으로는
+   * (예: 진한 빨강과 연한 빨강) 비슷한 온도끼리 헷갈리기 쉽다.
+   * --warm(더움)은 기존 --hot(위험·에러 표시용)과 겹치지 않도록 새로 뺀 전용 토큰이다.
+   */
+  --very-hot: #c0341d;
+  --very-hot-soft: #f8ded6;
+  --warm: #c2760a;
+  --warm-soft: #f8ecd4;
   --cool: #2c6fd1;
   --cool-soft: #e9f0fc;
+  --cold: #6d3fc0;
+  --cold-soft: #ece3f9;
+
+  --hot: #e0512b;
+  --hot-soft: #fdeee9;
 
   /* 즐겨찾기 */
   --star: #d9a017;
@@ -119,4 +133,43 @@ input {
 
   --el-border-radius-base: var(--r-sm);
   --el-font-family: inherit;
+}
+
+/* ==========================================================================
+   기온 등급 태그 — el-tag 는 --el-tag-* 변수로 색을 읽으므로 등급마다 매핑해 둔다.
+   El Plus 의 5개 semantic type(primary/success/warning/danger/info)만으로는
+   --star(즐겨찾기 금색)와 겹치지 않으면서 5단계를 표현할 수 없어 별도 클래스로 뺐다.
+
+   El Plus 자체 CSS 의 `.el-tag.el-tag--primary` 같은 규칙도 클래스 2개짜리라
+   `.el-tag.tier-*` 만으로는 우선순위가 같아 로드 순서에 따라 밀릴 수 있다.
+   실제로 쓰는 `.el-tag--light` 를 셀렉터에 포함시켜 클래스 3개로 만들어 확실히 이기게 한다.
+   ========================================================================== */
+.el-tag.el-tag--light.tier-very-hot {
+  --el-tag-text-color: var(--very-hot);
+  --el-tag-bg-color: var(--very-hot-soft);
+  --el-tag-border-color: transparent;
+}
+
+.el-tag.el-tag--light.tier-hot {
+  --el-tag-text-color: var(--warm);
+  --el-tag-bg-color: var(--warm-soft);
+  --el-tag-border-color: transparent;
+}
+
+.el-tag.el-tag--light.tier-mild {
+  --el-tag-text-color: var(--ok);
+  --el-tag-bg-color: var(--ok-soft);
+  --el-tag-border-color: transparent;
+}
+
+.el-tag.el-tag--light.tier-chilly {
+  --el-tag-text-color: var(--cool);
+  --el-tag-bg-color: var(--cool-soft);
+  --el-tag-border-color: transparent;
+}
+
+.el-tag.el-tag--light.tier-cold {
+  --el-tag-text-color: var(--cold);
+  --el-tag-bg-color: var(--cold-soft);
+  --el-tag-border-color: transparent;
 }

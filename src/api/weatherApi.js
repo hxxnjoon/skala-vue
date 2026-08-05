@@ -76,6 +76,15 @@ function toCityWeather(city, current) {
    ──────────────────────────────────────────────────────────────── */
 
 /**
+ * 임의의 {id,name,lat,lon} 도시 하나의 현재 날씨를 조회한다.
+ * CITIES 에 없는 도시(예: 주변 추천 페이지가 쓰는 확장 도시 목록)도 이 형태만 맞으면 재사용할 수 있다.
+ */
+export async function fetchCurrentWeatherFor(city) {
+  const current = await client.get('/weather', { params: { lat: city.lat, lon: city.lon } })
+  return toCityWeather(city, current)
+}
+
+/**
  * 모든 도시의 현재 날씨를 병렬로 조회한다.
  *
  * [Promise.all 이 아니라 allSettled 를 쓴 이유]
@@ -83,13 +92,7 @@ function toCityWeather(city, current) {
  * allSettled 로 성공한 것만 모으고, 전부 실패했을 때만 에러로 올린다.
  */
 export async function fetchWeatherList() {
-  const results = await Promise.allSettled(
-    CITIES.map((city) =>
-      client
-        .get('/weather', { params: { lat: city.lat, lon: city.lon } })
-        .then((current) => toCityWeather(city, current)),
-    ),
-  )
+  const results = await Promise.allSettled(CITIES.map((city) => fetchCurrentWeatherFor(city)))
 
   const succeeded = results
     .filter((result) => result.status === 'fulfilled')

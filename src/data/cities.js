@@ -23,6 +23,9 @@ export const CITIES = [
   { id: 'gwangju', name: '광주', lat: 35.1595, lon: 126.8526 },
   { id: 'busan', name: '부산', lat: 35.1796, lon: 129.0756 },
   { id: 'jeju', name: '제주', lat: 33.4996, lon: 126.5312 },
+  { id: 'ulsan', name: '울산', lat: 35.5384, lon: 129.3114 },
+  { id: 'jeonju', name: '전주', lat: 35.8242, lon: 127.148 },
+  { id: 'chuncheon', name: '춘천', lat: 37.8813, lon: 127.7298 },
 ]
 
 /** 주소의 :cityId 로 도시 정보를 찾는다. 없으면 null 을 돌려준다. */

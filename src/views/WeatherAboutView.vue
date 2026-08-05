@@ -10,17 +10,34 @@ import { RouterLink } from 'vue-router'
 const FEATURES = [
   { title: '한글·초성 검색', desc: "'서울'은 물론 'ㅅㅇ'으로도 도시를 찾을 수 있습니다." },
   {
+    title: '5단계 기온 분류',
+    desc: '매우더움·더움·선선함·쌀쌀함·추움 다섯 구간으로 나눠 색으로 한눈에 비교할 수 있습니다.',
+  },
+  {
+    title: '카드 클릭 한 번으로 상세보기',
+    desc: '지역 카드를 누르면 페이지 이동 없이 모달로 관측정보·시간대별 기온을 바로 볼 수 있습니다.',
+  },
+  {
+    title: '주변 카페 추천',
+    desc: '상세보기를 열 때마다 그 지역 주변 카페 중 두 곳을 무작위로 추천합니다(Kakao 로컬 API).',
+  },
+  {
     title: '즐겨찾기',
     desc: '자주 보는 도시를 담아 두면 브라우저에 저장되어 다음에도 유지됩니다.',
   },
-  { title: '섭씨 / 화씨 전환', desc: '목록·통계·상세 페이지가 항상 같은 단위로 표시됩니다.' },
-  {
-    title: '상세 관측 정보',
-    desc: '습도·풍속·강수확률과 시간대별 기온 변화를 확인할 수 있습니다.',
-  },
+  { title: '섭씨 / 화씨 전환', desc: '목록·통계·상세 모달이 항상 같은 단위로 표시됩니다.' },
 ]
 
-const STACK = ['Vue 3', 'Composition API', 'Vue Router', 'Vite']
+const STACK = [
+  'Vue 3',
+  'Composition API',
+  'Pinia',
+  'Vue Router',
+  'Element Plus',
+  'Vite',
+  'OpenWeatherMap API',
+  'Kakao 로컬 API',
+]
 </script>
 
 <template>
@@ -29,7 +46,8 @@ const STACK = ['Vue 3', 'Composition API', 'Vue Router', 'Vite']
       <p class="eyebrow">About</p>
       <h1>서비스 소개</h1>
       <p class="lead">
-        Vue 3 학습용으로 만든 날씨 대시보드입니다. OpenWeatherMap API 를 사용했습니다.
+        Vue 3 학습용으로 만든 날씨 대시보드입니다. 날씨는 OpenWeatherMap API, 주변 카페 정보는
+        Kakao 로컬 API 를 사용했습니다.
       </p>
     </header>
 

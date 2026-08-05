@@ -12,11 +12,23 @@ export function celsiusToFahrenheit(celsius) {
 }
 
 /**
- * 25도 기준 분기.
- * 판단은 반드시 섭씨 원본으로 한다. 화씨 값(77)을 25와 비교하면 전부 '더움'이 된다.
+ * 5단계 기온 구간.
+ * min 내림차순으로 두고 첫 번째로 만족하는 구간을 찾는 방식이라 순서를 바꾸면 안 된다.
  */
-export function isHot(celsius) {
-  return celsius >= 25
+export const TEMP_TIERS = [
+  { key: 'very-hot', label: '매우더움', range: '30℃ 이상', min: 30, color: 'var(--very-hot)' },
+  { key: 'hot', label: '더움', range: '25~29℃', min: 25, color: 'var(--warm)' },
+  { key: 'mild', label: '선선함', range: '20~24℃', min: 20, color: 'var(--ok)' },
+  { key: 'chilly', label: '쌀쌀함', range: '15~19℃', min: 15, color: 'var(--cool)' },
+  { key: 'cold', label: '추움', range: '15℃ 미만', min: -Infinity, color: 'var(--cold)' },
+]
+
+/**
+ * 섭씨 기온이 속한 구간을 돌려준다.
+ * 판단은 반드시 섭씨 원본으로 한다. 화씨 값(77)을 그대로 비교하면 전부 '매우더움'이 된다.
+ */
+export function getTempTier(celsius) {
+  return TEMP_TIERS.find((tier) => celsius >= tier.min)
 }
 
 /** 기온을 게이지 길이(%)로. 10℃~35℃ 를 0~100% 에 대응시킨다. */

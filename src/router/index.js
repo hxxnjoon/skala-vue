@@ -2,7 +2,7 @@
  * router/index.js — 라우트 규칙 정의
  *
  * 라우터는 "주소(URL) ↔ 화면(컴포넌트)" 대응표다.
- * /weather/city_01 로 들어오면 WeatherDetailView 를 그려 주는 식.
+ * 도시 상세보기는 더 이상 별도 주소를 쓰지 않는다 — CityDetailDialog 모달로 뜬다.
  */
 import { createRouter, createWebHashHistory } from 'vue-router'
 
@@ -21,16 +21,6 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: WeatherHomeView,
-    },
-    {
-      /**
-       * 동적 세그먼트(:cityId)
-       */
-      path: '/weather/:cityId',
-      name: 'weather-detail',
-      // 지연 로딩: 이 화면에 처음 들어갈 때 코드를 내려받는다.
-      // 초기 번들이 작아져 첫 로딩이 빨라진다.
-      component: () => import('../views/WeatherDetailView.vue'),
     },
     {
       path: '/about',
