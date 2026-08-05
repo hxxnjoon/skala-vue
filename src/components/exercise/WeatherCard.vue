@@ -124,34 +124,35 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
     </div>
 
     <div class="card-bottom">
-      <span class="tag" :class="hot ? 'hot' : 'cool'">
+      <el-tag :type="hot ? 'danger' : 'primary'" effect="light" size="small" round>
         <template v-if="props.city.temp >= 25">더움 (25도 이상)</template>
         <template v-else>선선함 (25도 미만)</template>
-      </span>
+      </el-tag>
 
       <div class="btns">
         <!-- 카드 안의 버튼이므로 .stop 으로 카드 클릭까지 번지는 것을 막는다 -->
-        <button
-          type="button"
-          class="fav-btn"
-          :class="{ on: isFavorite }"
-          :aria-pressed="isFavorite"
-          :title="isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'"
-          @click.stop="onToggleFavorite"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            :fill="isFavorite ? 'currentColor' : 'none'"
-            stroke="currentColor"
-            stroke-width="1.6"
-            stroke-linejoin="round"
-            aria-hidden="true"
+        <el-tooltip :content="isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'" placement="top">
+          <button
+            type="button"
+            class="fav-btn"
+            :class="{ on: isFavorite }"
+            :aria-pressed="isFavorite"
+            @click.stop="onToggleFavorite"
           >
-            <path :d="STAR_PATH" />
-          </svg>
-        </button>
+            <svg
+              viewBox="0 0 24 24"
+              :fill="isFavorite ? 'currentColor' : 'none'"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path :d="STAR_PATH" />
+            </svg>
+          </button>
+        </el-tooltip>
 
-        <button type="button" class="detail" @click.stop="onDetail">상세보기</button>
+        <el-button size="small" round @click.stop="onDetail">상세보기</el-button>
       </div>
     </div>
   </article>
@@ -278,24 +279,6 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
   gap: 4px;
 }
 
-.tag {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-
-.tag.hot {
-  background: var(--hot-soft);
-  color: var(--hot);
-}
-
-.tag.cool {
-  background: var(--cool-soft);
-  color: var(--cool);
-}
-
 .fav-btn {
   display: inline-flex;
   align-items: center;
@@ -322,21 +305,5 @@ const onToggleFavorite = () => emit('toggle-favorite', props.city)
 
 .fav-btn.on {
   color: var(--star);
-}
-
-.detail {
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  color: var(--text-dim);
-  font-size: 12px;
-  padding: 5px 10px;
-  border-radius: var(--r-sm);
-  transition: all 0.18s var(--ease);
-}
-
-.detail:hover {
-  background: var(--text);
-  border-color: var(--text);
-  color: #fff;
 }
 </style>

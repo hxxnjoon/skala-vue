@@ -46,7 +46,9 @@ const STACK = ['Vue 3', 'Composition API', 'Vue Router', 'Vite']
     <section class="panel">
       <h2 class="panel-title">사용 기술</h2>
       <div class="stack">
-        <span v-for="tech in STACK" :key="tech" class="chip">{{ tech }}</span>
+        <el-tag v-for="tech in STACK" :key="tech" type="primary" effect="light" round>{{
+          tech
+        }}</el-tag>
       </div>
     </section>
 
@@ -137,15 +139,6 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: var(--gap-1);
-}
-
-.chip {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: var(--cool-soft);
-  color: var(--cool);
 }
 
 .note {

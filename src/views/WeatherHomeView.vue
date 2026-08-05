@@ -14,6 +14,7 @@
 <script setup>
 import { ref, computed, watch, watchEffect, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { Refresh } from '@element-plus/icons-vue'
 
 import { useTemperature } from '../composables/useTemperature.js'
 import { useFavoritesStore } from '../stores/favoritesStore.js'
@@ -212,10 +213,6 @@ const handleToggleFavorite = (city) => {
 }
 
 /* ── 그 밖의 조작 ─────────────────────────── */
-const setFilterAll = () => (tempFilter.value = 'all')
-const setFilterHot = () => (tempFilter.value = 'hot')
-const setFilterCool = () => (tempFilter.value = 'cool')
-
 const toggleFavoritesOnly = () => (favoritesOnly.value = !favoritesOnly.value)
 
 const clearSelection = () => {
@@ -246,41 +243,34 @@ const resetFilters = () => {
 
       <div class="controls">
         <div class="chips" role="group" aria-label="목록 필터">
-          <button type="button" :class="{ on: tempFilter === 'all' }" @click="setFilterAll">
-            전체
-          </button>
-          <button type="button" :class="{ on: tempFilter === 'hot' }" @click="setFilterHot">
-            더움 25↑
-          </button>
-          <button type="button" :class="{ on: tempFilter === 'cool' }" @click="setFilterCool">
-            선선함 25↓
-          </button>
-          <button
-            type="button"
-            class="star-chip"
-            :class="{ on: favoritesOnly }"
+          <el-radio-group v-model="tempFilter" size="small">
+            <el-radio-button value="all">전체</el-radio-button>
+            <el-radio-button value="hot">더움 25↑</el-radio-button>
+            <el-radio-button value="cool">선선함 25↓</el-radio-button>
+          </el-radio-group>
+
+          <el-check-tag
+            :checked="favoritesOnly"
             :disabled="favoritesStore.count === 0"
-            @click="toggleFavoritesOnly"
+            type="warning"
+            @change="toggleFavoritesOnly"
           >
             ★ 즐겨찾기 {{ favoritesStore.count }}
-          </button>
+          </el-check-tag>
         </div>
 
-        <label class="sort">
-          <span class="sr-only">정렬 기준</span>
-          <select v-model="sortKey">
-            <option value="temp-desc">기온 높은 순</option>
-            <option value="temp-asc">기온 낮은 순</option>
-            <option value="name">이름 순</option>
-          </select>
-        </label>
+        <el-select v-model="sortKey" class="sort" size="small" aria-label="정렬 기준">
+          <el-option value="temp-desc" label="기온 높은 순" />
+          <el-option value="temp-asc" label="기온 낮은 순" />
+          <el-option value="name" label="이름 순" />
+        </el-select>
       </div>
     </BaseDashboardCard>
 
     <BaseDashboardCard title="지역별 날씨 현황" icon="chart">
       <template #actions>
         <span v-if="lastUpdated" class="updated">{{ updatedLabel }}</span>
-        <span v-if="summary" class="count tnum">{{ summary.count }}곳</span>
+        <el-tag v-if="summary" size="small" round class="tnum">{{ summary.count }}곳</el-tag>
       </template>
 
       <!-- 요약 통계도 카드와 같은 Composable 을 쓰므로 단위가 어긋날 수 없다 -->
@@ -301,32 +291,37 @@ const resetFilters = () => {
 
       <!-- 로딩 -->
       <div v-if="isLoading" class="grid" aria-busy="true">
-        <div v-for="n in 6" :key="n" class="skeleton">
-          <div class="sk-line w40"></div>
-          <div class="sk-line w70 tall"></div>
-          <div class="sk-bar"></div>
-          <div class="sk-line w50"></div>
+        <div v-for="n in 6" :key="n" class="skeleton-card">
+          <el-skeleton animated>
+            <template #template>
+              <el-skeleton-item variant="text" style="width: 40%; margin-bottom: 14px" />
+              <el-skeleton-item variant="h3" style="width: 70%; margin-bottom: 14px" />
+              <el-skeleton-item variant="text" style="width: 100%; margin-bottom: 10px" />
+              <el-skeleton-item variant="text" style="width: 50%" />
+            </template>
+          </el-skeleton>
         </div>
       </div>
 
       <!-- 에러 -->
-      <div v-else-if="errorMessage" class="notice error">
-        <p class="notice-title">불러오기 실패</p>
-        <p class="notice-body">{{ errorMessage }}</p>
+      <div v-else-if="errorMessage" class="notice">
+        <el-alert type="error" show-icon :closable="false" title="불러오기 실패" :description="errorMessage" />
         <!-- 키 오류처럼 다시 눌러도 소용없는 경우에는 버튼을 감춘다 -->
-        <button v-if="canRetry" type="button" class="retry" @click="loadNormal">다시 시도</button>
+        <el-button v-if="canRetry" type="danger" plain @click="loadNormal">다시 시도</el-button>
       </div>
 
       <!-- 빈 결과 -->
-      <div v-else-if="isEmptyResult" class="notice empty">
-        <p class="notice-title">
-          <template v-if="hasKeyword">'{{ searchQuery }}'와 일치하는 도시가 없습니다</template>
-          <template v-else-if="favoritesOnly">즐겨찾기에 담은 도시가 없습니다</template>
-          <template v-else>조건에 맞는 도시가 없습니다</template>
-        </p>
-        <p class="notice-body">검색어를 지우거나 필터를 넓혀 보세요.</p>
-        <button type="button" class="retry" @click="resetFilters">조건 초기화</button>
-      </div>
+      <el-empty v-else-if="isEmptyResult" :image-size="72">
+        <template #description>
+          <p class="notice-title">
+            <template v-if="hasKeyword">'{{ searchQuery }}'와 일치하는 도시가 없습니다</template>
+            <template v-else-if="favoritesOnly">즐겨찾기에 담은 도시가 없습니다</template>
+            <template v-else>조건에 맞는 도시가 없습니다</template>
+          </p>
+          <p class="notice-body">검색어를 지우거나 필터를 넓혀 보세요.</p>
+        </template>
+        <el-button @click="resetFilters">조건 초기화</el-button>
+      </el-empty>
 
       <!-- 목록 -->
       <div v-else class="grid">
@@ -353,7 +348,7 @@ const resetFilters = () => {
     </footer>
 
     <p class="devnote">
-      <button type="button" @click="loadNormal">새로고침</button>
+      <el-button type="primary" link :icon="Refresh" @click="loadNormal">새로고침</el-button>
     </p>
   </div>
 </template>
@@ -416,54 +411,8 @@ h1 {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--gap-1);
-}
-
-.chips button {
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--text-dim);
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 13px;
-  transition: all 0.18s var(--ease);
-}
-
-.chips button:hover:not(:disabled) {
-  border-color: var(--line-strong);
-}
-
-.chips button.on {
-  background: var(--text);
-  border-color: var(--text);
-  color: #fff;
-}
-
-.star-chip.on {
-  background: var(--star);
-  border-color: var(--star);
-  color: #fff;
-}
-
-.star-chip:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.sort select {
-  font: inherit;
-  font-size: 13px;
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  color: var(--text-dim);
-}
-
-.count {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-faint);
+  align-items: center;
+  gap: var(--gap-2);
 }
 
 .updated {
@@ -516,60 +465,19 @@ h1 {
   gap: var(--gap-2);
 }
 
-.skeleton {
+.skeleton-card {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   padding: var(--gap-3);
 }
 
-.sk-line,
-.sk-bar {
-  background: linear-gradient(90deg, var(--surface-sunken), var(--line), var(--surface-sunken));
-  background-size: 200% 100%;
-  animation: shimmer 1.3s infinite linear;
-  border-radius: 4px;
-  height: 12px;
-  margin-bottom: var(--gap-2);
-}
-
-.sk-line.tall {
-  height: 26px;
-}
-
-.sk-bar {
-  height: 4px;
-  border-radius: 999px;
-}
-
-.w40 {
-  width: 40%;
-}
-
-.w50 {
-  width: 50%;
-  margin-bottom: 0;
-}
-
-.w70 {
-  width: 70%;
-}
-
-@keyframes shimmer {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
-}
-
 .notice {
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--r-md);
-  padding: var(--gap-4) var(--gap-3);
-  text-align: center;
-  background: var(--surface-sunken);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gap-3);
+  padding: var(--gap-3) 0;
 }
 
 .notice-title {
@@ -579,33 +487,9 @@ h1 {
 }
 
 .notice-body {
-  margin: 0 0 var(--gap-3);
+  margin: 0;
   font-size: 13px;
   color: var(--text-dim);
-}
-
-.notice.error {
-  border-color: var(--hot);
-  background: var(--hot-soft);
-}
-
-.notice.error .notice-title {
-  color: var(--hot);
-}
-
-.retry {
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  padding: 7px 16px;
-  border-radius: var(--r-sm);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.retry:hover {
-  background: var(--text);
-  border-color: var(--text);
-  color: #fff;
 }
 
 .statusbar {
@@ -647,28 +531,6 @@ h1 {
   display: flex;
   gap: var(--gap-2);
   justify-content: center;
-}
-
-.devnote button {
-  border: 0;
-  background: transparent;
-  color: var(--text-faint);
-  font-size: 12px;
-  text-decoration: underline;
-  padding: 0;
-}
-
-.devnote button:hover {
-  color: var(--text-dim);
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
 }
 
 @media (max-width: 520px) {

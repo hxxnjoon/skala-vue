@@ -13,6 +13,7 @@
 <script setup>
 import { ref, computed, watch, watchEffect, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ArrowLeft } from '@element-plus/icons-vue'
 
 import { useTemperature } from '../composables/useTemperature.js'
 import { useFavoritesStore } from '../stores/favoritesStore.js'
@@ -81,9 +82,17 @@ const hourlyBars = computed(() => {
 /** 미세먼지 등급별 색 구분 */
 const dustTone = computed(() => {
   if (!city.value) return 'ok'
-  if (city.value.dust === '나쁨') return 'hot'
+  if (city.value.dust === '나쁨' || city.value.dust === '매우 나쁨' || city.value.dust === '위험')
+    return 'hot'
   if (city.value.dust === '보통') return 'warn'
   return 'ok'
+})
+
+/** dustTone → el-tag type 매핑 */
+const dustTagType = computed(() => {
+  if (dustTone.value === 'hot') return 'danger'
+  if (dustTone.value === 'warn') return 'warning'
+  return 'success'
 })
 
 /* ── 탭 제목 ──────────────────────────────── */
@@ -114,30 +123,36 @@ const onToggleFavorite = () => {
 <template>
   <div class="page">
     <!-- 로딩 -->
-    <div v-if="isLoading" class="panel skeleton-panel" aria-busy="true">
-      <div class="sk w30"></div>
-      <div class="sk w60 tall"></div>
-      <div class="sk w80"></div>
+    <div v-if="isLoading" class="panel" aria-busy="true">
+      <el-skeleton animated :rows="3" />
     </div>
 
     <!-- 도시를 찾지 못한 경우 -->
-    <div v-else-if="errorMessage" class="panel notice">
-      <p class="notice-title">도시를 찾을 수 없습니다</p>
-      <p class="notice-body">{{ errorMessage }}</p>
-      <button type="button" class="primary" @click="goHome">대시보드로 돌아가기</button>
-    </div>
+    <el-result
+      v-else-if="errorMessage"
+      class="panel"
+      icon="warning"
+      title="도시를 찾을 수 없습니다"
+      :sub-title="errorMessage"
+    >
+      <template #extra>
+        <el-button type="primary" @click="goHome">대시보드로 돌아가기</el-button>
+      </template>
+    </el-result>
 
     <!-- 정상 -->
     <template v-else-if="city">
       <header class="head">
         <div>
-          <button type="button" class="back" @click="goHome">← 대시보드</button>
+          <el-button type="primary" link :icon="ArrowLeft" class="back" @click="goHome">
+            대시보드
+          </el-button>
           <h1>{{ city.name }}</h1>
           <p class="sub">
             {{ city.description || city.status }} · 체감 {{ showTemp(city.feelsLike) }}
-            <span class="tag" :class="hot ? 'hot' : 'cool'">
+            <el-tag :type="hot ? 'danger' : 'primary'" effect="light" size="small" round>
               {{ city.temp >= 25 ? '더움 (25도 이상)' : '선선함 (25도 미만)' }}
-            </span>
+            </el-tag>
           </p>
         </div>
 
@@ -171,32 +186,26 @@ const onToggleFavorite = () => {
 
       <section class="panel">
         <h2 class="panel-title">관측 정보</h2>
-        <dl class="specs">
-          <div class="spec">
-            <dt>습도</dt>
-            <dd class="tnum">{{ city.humidity }}%</dd>
-          </div>
-          <div class="spec">
-            <dt>풍속</dt>
-            <dd class="tnum">{{ city.wind }} m/s</dd>
-          </div>
-          <div class="spec">
-            <dt>강수확률</dt>
-            <dd class="tnum">{{ city.rainChance }}%</dd>
-          </div>
-          <div class="spec">
-            <dt>미세먼지</dt>
-            <dd :class="dustTone">{{ city.dust }}</dd>
-          </div>
-          <div class="spec">
-            <dt>일출</dt>
-            <dd class="tnum">{{ city.sunrise }}</dd>
-          </div>
-          <div class="spec">
-            <dt>일몰</dt>
-            <dd class="tnum">{{ city.sunset }}</dd>
-          </div>
-        </dl>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="습도">
+            <span class="tnum">{{ city.humidity }}%</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="풍속">
+            <span class="tnum">{{ city.wind }} m/s</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="강수확률">
+            <span class="tnum">{{ city.rainChance }}%</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="미세먼지">
+            <el-tag :type="dustTagType" size="small">{{ city.dust }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="일출">
+            <span class="tnum">{{ city.sunrise }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="일몰">
+            <span class="tnum">{{ city.sunset }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
       </section>
 
       <section class="panel">
@@ -236,16 +245,8 @@ const onToggleFavorite = () => {
 }
 
 .back {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-faint);
-}
-
-.back:hover {
-  color: var(--text);
+  margin-bottom: 4px;
+  padding-left: 0;
 }
 
 h1 {
@@ -263,23 +264,6 @@ h1 {
   align-items: center;
   gap: var(--gap-2);
   flex-wrap: wrap;
-}
-
-.tag {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 999px;
-}
-
-.tag.hot {
-  background: var(--hot-soft);
-  color: var(--hot);
-}
-
-.tag.cool {
-  background: var(--cool-soft);
-  color: var(--cool);
 }
 
 .fav {
@@ -371,45 +355,6 @@ h1 {
   color: var(--text-dim);
 }
 
-.specs {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 1px;
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  overflow: hidden;
-}
-
-.spec {
-  background: var(--surface-sunken);
-  padding: var(--gap-2) var(--gap-3);
-}
-
-.spec dt {
-  font-size: 11px;
-  color: var(--text-faint);
-}
-
-.spec dd {
-  margin: 2px 0 0;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.spec dd.hot {
-  color: var(--hot);
-}
-
-.spec dd.warn {
-  color: #a8630b;
-}
-
-.spec dd.ok {
-  color: var(--ok);
-}
-
 .chart {
   display: flex;
   align-items: flex-end;
@@ -452,70 +397,4 @@ h1 {
   color: var(--text-faint);
 }
 
-.skeleton-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap-2);
-}
-
-.sk {
-  height: 14px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, var(--surface-sunken), var(--line), var(--surface-sunken));
-  background-size: 200% 100%;
-  animation: shimmer 1.3s infinite linear;
-}
-
-.sk.tall {
-  height: 44px;
-}
-
-.w30 {
-  width: 30%;
-}
-
-.w60 {
-  width: 60%;
-}
-
-.w80 {
-  width: 80%;
-}
-
-@keyframes shimmer {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
-}
-
-.notice {
-  text-align: center;
-  border-style: dashed;
-}
-
-.notice-title {
-  margin: 0 0 4px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--hot);
-}
-
-.notice-body {
-  margin: 0 0 var(--gap-3);
-  font-size: 13px;
-  color: var(--text-dim);
-}
-
-.primary {
-  border: 1px solid var(--text);
-  background: var(--text);
-  color: #fff;
-  padding: 8px 18px;
-  border-radius: var(--r-sm);
-  font-size: 13px;
-  font-weight: 600;
-}
 </style>

@@ -25,6 +25,9 @@
 -->
 
 <script setup>
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { Search } from '@element-plus/icons-vue'
+
 // props 를 변수에 담아 두면 script 안에서도 props.query 로 읽을 수 있다.
 
 const props = defineProps({
@@ -40,52 +43,66 @@ const props = defineProps({
 const emit = defineEmits(['update-query'])
 
 /**
- * 입력이 발생할 때마다 호출된다.
+ * el-input 을 :model-value(단방향) 로만 표시하면 문제가 생긴다.
  *
- * 여기서 props.query 를 직접 바꾸지 않는다는 점에 주목.
- * props 는 읽기 전용이므로 수정하면 Vue 가 콘솔에 경고를 띄운다.
- * 대신 "값이 이렇게 바뀌었어요" 라고 부모에게 알리기만 한다.
+ * el-input 은 매 input 이벤트마다 자기 내부 값을 nextTick 뒤에
+ * "props.modelValue 기준으로 다시 맞춰 쓰는" 로직을 갖고 있다. 그런데 우리가
+ * :model-value 로만 값을 흘려보내면, 새 글자가 부모(WeatherHomeView)까지 갔다가
+ * 다시 이 컴포넌트로 내려오는 왕복이 끝나야 el-input 의 modelValue 가 갱신된다.
+ * el-input 의 "다시 맞춰 쓰기"가 이 왕복보다 먼저 일어나면, 방금 입력하거나
+ * 지운 글자가 옛 값으로 되돌아가 버려서 마치 지워지지 않는 것처럼 보인다.
+ *
+ * 그래서 el-input 은 로컬 ref(localQuery)에 v-model 로 묶어 자기 안에서
+ * 즉시·동기적으로 값이 맞물리게 하고, 부모로는 watch 로 한 번 더 실어 보낸다.
  */
-const onInput = (event) => {
-  emit('update-query', event.target.value)
+const localQuery = ref(props.query)
+
+watch(
+  () => props.query,
+  (value) => {
+    if (value !== localQuery.value) localQuery.value = value
+  },
+)
+
+watch(localQuery, (value) => {
+  emit('update-query', value)
+})
+
+/**
+ * el-input 은 한글 IME 조합 중에는 input 이벤트를 막아 두고
+ * 조합이 끝난 뒤(compositionend)에만 자기 모델을 갱신한다. (element-plus 의
+ * handleInput 이 `if (isComposing.value) return` 으로 가로챈다.) v-model 을 써도
+ * 이 가드 자체는 피할 수 없다.
+ *
+ * 그래서 el-input 이 감싸고 있는 진짜 <input> DOM 노드를 ref 로 직접 붙잡아
+ * 거기에 네이티브 input 리스너를 따로 단다. 네이티브 input 이벤트는 조합 중에도
+ * 매 글자마다 그대로 발생하므로, 이 가드를 우회해 localQuery 를 즉시 갱신할 수 있다.
+ */
+const elInputRef = ref(null)
+
+const onNativeInput = (event) => {
+  localQuery.value = event.target.value
 }
 
-/** × 버튼 — 빈 문자열을 올려보내 검색어를 지운다 */
-const onClear = () => {
-  emit('update-query', '')
-}
+onMounted(() => {
+  elInputRef.value?.input?.addEventListener('input', onNativeInput)
+})
+
+onBeforeUnmount(() => {
+  elInputRef.value?.input?.removeEventListener('input', onNativeInput)
+})
 </script>
 
 <template>
   <div class="search">
-    <div class="input-wrap">
-      <!--
-        v-model 을 쓰지 않고 :value + @input 으로 나눈 이유
-
-        v-model 은 한글 IME 조합이 끝난 뒤에만 값을 갱신한다.
-        그래서 '서울'을 칠 때 ㅅ → 서 → 설 → 서우 로 조합되는 과정이
-        화면에 나타나지 않고, 다음 글자를 치거나 스페이스를 눌러야 반영된다.
-
-        :value 로 표시하고 @input 을 직접 받으면 조합 중인 글자도 즉시 잡힌다.
-      -->
-      <input
-        type="text"
-        placeholder="검색할 도시 이름 입력"
-        :value="props.query"
-        @input="onInput"
-      />
-
-      <!-- v-if: 검색어가 있을 때만 지우기 버튼을 만든다 (없으면 DOM 에서 아예 제거) -->
-      <button
-        v-if="props.query !== ''"
-        type="button"
-        class="clear"
-        aria-label="검색어 지우기"
-        @click="onClear"
-      >
-        ×
-      </button>
-    </div>
+    <el-input
+      ref="elInputRef"
+      v-model="localQuery"
+      placeholder="검색할 도시 이름 입력"
+      size="large"
+      clearable
+      :prefix-icon="Search"
+    />
 
     <!-- 입력한 도시명을 그대로 되비쳐 준다 -->
     <p class="echo">
@@ -99,49 +116,6 @@ const onClear = () => {
 <style scoped>
 .search {
   display: block;
-}
-
-/* 지우기 버튼을 입력창 안쪽에 겹쳐 놓기 위한 기준점 */
-.input-wrap {
-  position: relative;
-}
-
-.input-wrap input {
-  width: 100%;
-  /* 지우기 버튼과 글자가 겹치지 않게 */
-  padding: 11px 38px 11px 13px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-md);
-  background: var(--surface-sunken);
-  transition:
-    border-color 0.18s var(--ease),
-    background 0.18s var(--ease);
-}
-
-/* 입력 중임을 색으로 알림 */
-.input-wrap input:focus {
-  outline: none;
-  border-color: var(--cool);
-  background: var(--surface);
-}
-
-.clear {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%); /* 세로 정중앙 정렬 */
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--line);
-  color: var(--text-dim);
-  font-size: 16px;
-  line-height: 1;
-}
-
-.clear:hover {
-  background: var(--line-strong);
 }
 
 .echo {

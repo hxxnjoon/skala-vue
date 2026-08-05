@@ -9,6 +9,7 @@
 -->
 
 <script setup>
+import { computed } from 'vue'
 import { useConfigStore } from '../../stores/configStore.js'
 
 /**
@@ -17,25 +18,28 @@ import { useConfigStore } from '../../stores/configStore.js'
  * 값을 따로 꺼내야 할 때는 storeToRefs() 를 쓴다.
  */
 const configStore = useConfigStore()
+
+/**
+ * el-switch 는 boolean v-model 을 기대하므로, get/set computed 로
+ * 스토어의 문자열 unit 값과 이어 준다.
+ */
+const isFahrenheit = computed({
+  get: () => configStore.isFahrenheit,
+  set: (value) => configStore.setUnit(value ? 'fahrenheit' : 'celsius'),
+})
 </script>
 
 <template>
   <div class="toggler">
-    <span class="label">
-      날씨단위: <strong>{{ configStore.unitLabel }}</strong>
-    </span>
+    <span class="label">날씨단위</span>
 
-    <!--
-      action 을 직접 호출한다.
-    -->
-    <button
-      type="button"
-      class="btn"
+    <el-switch
+      v-model="isFahrenheit"
+      inline-prompt
+      active-text="°F"
+      inactive-text="°C"
       :aria-label="`온도 단위를 ${configStore.isFahrenheit ? '섭씨' : '화씨'}로 변경`"
-      @click="configStore.toggleUnit"
-    >
-      단위변경
-    </button>
+    />
   </div>
 </template>
 
@@ -52,30 +56,8 @@ const configStore = useConfigStore()
   white-space: nowrap;
 }
 
-.label strong {
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-.btn {
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  color: var(--text-dim);
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  transition: all 0.18s var(--ease);
-}
-
-.btn:hover {
-  background: var(--text);
-  border-color: var(--text);
-  color: #fff;
-}
-
 @media (max-width: 560px) {
-  /* 화면이 좁으면 문구는 감추고 버튼만 남긴다 */
+  /* 화면이 좁으면 문구는 감추고 스위치만 남긴다 */
   .label {
     display: none;
   }
